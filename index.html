@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verdade ou Consequência</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1cd929, #ad080d);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    ::placeholder {
+      color: rgb(255, 255, 255);
+    }
+    input:focus::-webkit-input-placeholder {
+      color: transparent;
+    }
+    input:focus::-moz-placeholder {
+      color: transparent;
+    }
+    input:-moz-placeholder {
+      color: transparent;
+    }
+    input:focus::-webkit-input-placeholder {
+      opacity: 0;
+    }
+    input:focus::-moz-placeholder {
+      opacity: 0;
+    }
+    input:-moz-placeholder {
+      opacity: 0;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      position: relative;
+    }
+    .users {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .user-box {
+      position: relative;
+      background: #979494;
+      border: 2px solid #000000;
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      font-weight: bold;
+      color: #333;
+      display: inline-block;
+      margin: 0.5rem;
+    }
+    .remove-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      cursor: pointer;
+      color: #b7a7ab;
+      font-weight: bold;
+      border-radius: 50%;
+      border: 2px solid #3a3939;
+      background: white;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      user-select: none;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .remove-btn:hover {
+      background-color: #b3adae;
+      color: white;
+    }
+    button {
+      background: #363635;
+      color: white;
+      border: none;
+      padding: 0.8rem 1.2rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:hover {
+      background: #4a4a4a;
+    }
+    input[type="text"] {
+      width: 100%;
+      height: 3rem;
+      font-size: 1.1rem;
+      color: #ffffff;
+      background: #000000;
+      margin-bottom: 1rem;
+      border: none;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .hidden {
+      display: none;
+    }
+    #resultado {
+      margin: 1rem 0;
+      font-size: 1.2rem;
+    }
+    #temporizador {
+      font-size: 1rem;
+      color: #d6336c;
+      margin: 1rem 0;
+    }
+    #consequenciaBotoes {
+      margin-top: 1rem;
+    }
+    /* Canvas da roleta centralizado e com z-index para ficar acima */
+    #roletaCanvas {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 1000;
+    }
+    #scoreboard {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  font-size: 1rem;
+  font-weight: bold;
+  max-width: 200px;
+  z-index: 999;
+}
+  </style>
+</head>
+<body>
+  <div id="scoreboard"></div>
+  <div class="container">
+    <h1>Verdade ou Consequência</h1>
+    <input type="text" id="nomeInput" placeholder="Digite um nome e pressione Enter" onkeypress="adicionarUser(event)" />
+    <div class="users" id="listaUsuarios"></div>
+    <canvas id="roletaCanvas" width="300" height="300"></canvas>
+    <div id="resultado">Clique para começar</div>
+    <div id="temporizador" class="hidden">
+      <strong>Tempo restante:</strong> <span id="contador">30</span> segundos
+    </div>
+    <button id="respondiBtn" class="hidden" onclick="confirmarResposta()">Já respondi ✅</button>
+    <div id="consequenciaBotoes" class="hidden">
+      <button onclick="confirmarConsequencia(true)">Realizei ✅</button>
+      <button onclick="confirmarConsequencia(false)">Não realizei ❌</button>
+    </div>
+    <button id="sortearBtn" onclick="sortearComRoleta()">Sortear Jogador</button>
+    <div id="escolhaTipo" class="hidden">
+      <p>Escolha: Verdade ou Consequência?</p>
+      <button onclick="sortear('Verdade')">Verdade</button>
+      <button onclick="sortear('Consequência')">Consequência</button>
+    </div>
+  </div>
+
+  <script>
+const verdades = [
+  "Qual é o teu maior segredo?",
+  "Já mentiste a um amigo próximo?",
+  "Qual foi a maior vergonha que já passaste?",
+  "Há alguém aqui com quem comias?",
+  "Já stalkeaste alguém nas redes sociais? Quem???",
+  "Qual foi a maior mentira que contaste a um(a) namorado(a) e que nunca foi descoberta?",
+  "Já tiveste algum sonho molhado com alguém desta sala?",
+  "Diz um defeito de cada participante do jogo.",
+  "Alguma vez estiveste numa situação em que te arrependeste de não ter dito 'não'?",
+  "Qual é o teu maior arrependimento?",
+  "Já mentiste neste jogo?",
+  "Qual foi o conselho mais merdoso que já deste?",
+  "Já usaste alguma aplicação de encontros?",
+  "Que tipo de elogio mais gostas de receber?",
+  "Qual é a tua posição sexual favorita?",
+  "Qual foi o sítio mais estranho onde já beijaste alguém?",
+  "Já fingiste gostar de alguém só por conveniência?",
+  "Se tivesses de escolher alguém desta sala para beijar agora, quem seria?",
+  "Qual foi a coisa mais embaraçosa que já pesquisaste no Google?",
+  "O que mudarias no teu corpo, se pudesses?",
+  "Já te apaixonaste por alguém comprometido?",
+  "Já perseguiste o(a) ex de alguém de quem gostas?",
+  "Qual foi a desculpa mais esfarrapada que deste para não sair com alguém?",
+  "Já fingiste estar a dormir para evitar uma conversa?",
+  "Qual é a tua maior insegurança que ninguém sabe?",
+  "Já tiveste um crush por um(a) professor(a) ou chefe?",
+  "Ficarias com alguém apenas por interesse?",
+  "Já enviaste nudes e arrependeste-te?",
+  "Qual é o segredo mais estranho que guardas?",
+  "Se pudesses apagar um momento da tua vida, qual seria?",
+  "Alguma vez fingiste um orgasmo?",
+  "Que coisas estranhas tens ou já tiveste o hábito de comer?",
+  "Que coisas estranhas tens ou já tiveste o hábito de fazer?",
+  "Tens algum fetiche nojento? Se sim, qual?",
+  "Já te borraste em público?",
+  "Se ficares sem papel higiénico… (inventa uma solução e explica em voz alta).",
+  "Quando foi a tua primeira vez? Se já aconteceu, como foi? Caso nunca tenhas feito, terás de fazer uma consequência à escolha da pessoa à tua esquerda.",
+  "Como é que descobriste os sites pornográficos?",
+  "Qual foi o local mais inusitado onde fizeste sexo? Caso nunca tenhas feito, terás de fazer uma consequência à escolha da pessoa à tua esquerda."
+];
+
+const consequencias = [
+  "Dança uma música engraçada durante 30 segundos.",
+  "Faz este quiz e mostra o resultado: https://bdsmtest.org/select-lang",
+  "Manda um emoji aleatório para a última pessoa que te mandou mensagem.",
+  "Diz algo engraçado com voz de bebé.",
+  "Publica uma selfie a fazer caretas.",
+  "Liga a um amigo e canta os parabéns sem motivo nenhum.",
+  "Abre o TikTok e faz a primeira dança que aparecer no feed.",
+  "Roda a lista de contactos do teu telemóvel até alguém mandar parar. Tens de escolher entre ligar à pessoa ou apagar o número.",
+  "Faz scroll nas tuas fotos até a pessoa à tua esquerda pedir para parares. Tens de mostrar essa foto.",
+  "Descreve o sabor da água como se fosses um especialista.",
+  "Publica a tua última selfie.",
+  "Liga para a última chamada recebida e diz que tens saudades.",
+  "Come uma fruta da forma mais sexy que conseguires.",
+  "Lambe uma barra de sabão e envia um vídeo. Caso não tenhas sabão, lambe outra coisa à escolha da pessoa à tua esquerda.",
+  "Faz um vídeo a preparar uma sandes de olhos vendados. Caso não tenhas os ingredientes, improvisa.",
+  "Escreve um tweet com os olhos fechados.",
+  "Escolhe uma foto de fundo para o telemóvel da pessoa ao teu lado, e vice-versa.",
+  "Troca a tua foto de perfil por uma imagem engraçada à escolha do grupo durante 1 hora.",
+  "Fala com sotaque de outro país durante 3 rondas.",
+  "Publica nos stories algo à escolha da pessoa à tua esquerda.",
+  "Faz uma serenata improvisada para alguém do grupo.",
+  "Finge que estás a dar uma palestra motivacional sobre como conquistar crushes.",
+  "Dança sem música como se estivesses num videoclipe romântico.",
+  "Liga para um contacto aleatório e diz 'Sonhei contigo hoje 😳' e desliga.",
+  "Imita um animal até alguém adivinhar qual é.",
+  "Escreve 'Estou carente 😈' e envia para o grupo da família.",
+  "A pessoa à tua esquerda escolhe um story aleatório e tu tens de o recriar.",
+  "Faz beatbox durante 30 segundos.",
+  "A pessoa à tua esquerda pode escolher o que vais usar como background durante uma semana.",
+  "Lê em voz alta a última mensagem que recebeste no WhatsApp.",
+  "Mostra as tuas últimas pesquisas no Google.",
+  "Tira uma selfie da forma que a pessoa à tua esquerda desejar."
+];
+
+
+    const usuarios = [];
+    let pontuacoes = {};
+    let jogadorAtual = "";
+    let respondeuEmTempo = false;
+    let historico = {};
+    let intervalo = null;
+    let ultimoJogador = "";
+
+    const canvas = document.getElementById('roletaCanvas');
+    const ctx = canvas.getContext('2d');
+    const centroX = canvas.width / 2;
+    const centroY = canvas.height / 2;
+    const raio = 140;
+    let anguloAtual = 0;
+    let velocidade = 0;
+    let animando = false;
+    let indiceEscolhido = 0;
+
+    function adicionarUser(event) {
+      if (event.key === "Enter") {
+        const nome = document.getElementById("nomeInput").value.trim();
+        if (nome && !usuarios.includes(nome)) {
+          usuarios.push(nome);
+          pontuacoes[nome] = 0;
+          atualizarListaUsuarios();
+        }
+        document.getElementById("nomeInput").value = "";
+      }
+    }
+
+    function atualizarListaUsuarios() {
+      atualizarScoreboard();
+      const lista = document.getElementById("listaUsuarios");
+      lista.innerHTML = "";
+      usuarios.forEach(user => {
+        const div = document.createElement("div");
+        div.className = "user-box";
+        div.innerHTML = `${user} <span class="remove-btn" onclick="removerUser('${user}')">×</span>`;
+        lista.appendChild(div);
+      });
+    }
+    function atualizarScoreboard() {
+  const div = document.getElementById("scoreboard");
+  div.innerHTML = "<strong>Placar:</strong><br>";
+  usuarios.forEach(user => {
+    div.innerHTML += `${user}: ${pontuacoes[user]} pts<br>`;
+  });
+}
+    function removerUser(nome) {
+      const index = usuarios.indexOf(nome);
+      if (index > -1) {
+        usuarios.splice(index, 1);
+        delete pontuacoes[nome];
+        atualizarListaUsuarios();
+
+        if (jogadorAtual === nome) {
+          resetarJogo();
+        }
+      }
+    }
+
+    function resetarJogo() {
+      jogadorAtual = "";
+      clearInterval(intervalo);
+      document.getElementById("resultado").innerText = "Clique para começar";
+      document.getElementById("escolhaTipo").classList.add("hidden");
+      document.getElementById("sortearBtn").classList.remove("hidden");
+      document.getElementById("respondiBtn").classList.add("hidden");
+      document.getElementById("consequenciaBotoes").classList.add("hidden");
+      document.getElementById("temporizador").classList.add("hidden");
+      canvas.style.display = "none";
+      animando = false;
+    }
+
+    function desenharRoleta(angulo) {
+  const n = usuarios.length;
+  const anguloPorFatia = 2 * Math.PI / n;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < n; i++) {
+    const startAngle = angulo + i * anguloPorFatia;
+    const endAngle = startAngle + anguloPorFatia;
+
+    // Criar gradiente radial para dar efeito de cassino
+    const grad = ctx.createRadialGradient(centroX, centroY, 10, centroX, centroY, raio);
+    grad.addColorStop(0, i % 2 === 0 ? "#008000" : "#ff0000");
+    grad.addColorStop(1, i % 2 === 0 ? "#008000" : "#cc0000");
+
+    ctx.beginPath();
+    ctx.moveTo(centroX, centroY);
+    ctx.arc(centroX, centroY, raio, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+
+    // Texto
+    ctx.save();
+    ctx.translate(centroX, centroY);
+    ctx.rotate(startAngle + anguloPorFatia / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 16px Arial";
+    ctx.shadowColor = "black";
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.shadowBlur = 3;
+    ctx.fillText(usuarios[i], raio - 10, 6);
+    ctx.restore();
+  }
+
+  // Círculo central dourado
+  ctx.beginPath();
+  ctx.arc(centroX, centroY, 20, 0, 2 * Math.PI);
+  ctx.fillStyle = "#ffcc00";
+  ctx.fill();
+
+  // Indicador superior (seta de cassino)
+  ctx.beginPath();
+  ctx.moveTo(centroX, centroY - raio - 20);
+  ctx.lineTo(centroX - 15, centroY - raio - 5);
+  ctx.lineTo(centroX + 15, centroY - raio - 5);
+  ctx.closePath();
+  ctx.fillStyle = "#222";
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 5;
+  ctx.fill();
+}
+
+    function animarRoleta() {
+      if (!animando) return;
+
+      // Desaceleração da velocidade
+      velocidade *= 0.97;
+      anguloAtual += velocidade;
+
+      // Normalizar angulo para ficar entre 0 e 2pi
+      anguloAtual %= 2 * Math.PI;
+
+      desenharRoleta(anguloAtual);
+
+      if (velocidade < 0.002) {
+        animando = false;
+        // Definir índice do jogador escolhido
+        const n = usuarios.length;
+        const anguloPorFatia = 2 * Math.PI / n;
+
+        // O ângulo 0 está no topo, temos que ajustar o índice:
+        // jogador escolhido é o que está na fatia que o indicador aponta
+        let anguloParaIndicador = (3 * Math.PI / 2 - anguloAtual + 2 * Math.PI) % (2 * Math.PI);
+        indiceEscolhido = Math.floor(anguloParaIndicador / anguloPorFatia) % n;
+        jogadorAtual = usuarios[indiceEscolhido];
+        
+
+        canvas.style.display = "none";
+        document.getElementById("resultado").innerText = `Jogador sorteado: ${jogadorAtual}`;
+        document.getElementById("sortearBtn").classList.add("hidden");
+        document.getElementById("escolhaTipo").classList.remove("hidden");
+      } else {
+        requestAnimationFrame(animarRoleta);
+      }
+    }
+
+    function sortearComRoleta() {
+      if (usuarios.length === 0) {
+        alert("Adicione pelo menos um jogador!");
+        return;
+      }
+      if (animando) return; // evitar múltiplos cliques
+
+      canvas.style.display = "block";
+      anguloAtual = 0;
+      velocidade = 0.3 + Math.random() * 0.3;
+      animando = true;
+      desenharRoleta(anguloAtual);
+      animarRoleta();
+    }
+
+    function sortear(tipo) {
+  document.getElementById("escolhaTipo").classList.add("hidden");
+
+  if (!historico[jogadorAtual]) {
+    historico[jogadorAtual] = { Verdade: [], Consequência: [] };
+  }
+
+  const lista = tipo === "Verdade" ? verdades : consequencias;
+  const jaUsadas = historico[jogadorAtual][tipo];
+
+  // Verifica se usou todas as opções
+  if (jaUsadas.length >= lista.length) {
+    alert(`${jogadorAtual}, Já recebeste todas as opções de ${tipo}. Reiniciando suas opções!`);
+    historico[jogadorAtual][tipo] = [];
+  }
+
+  // Sorteia evitando repetição
+  let opcao;
+  do {
+    opcao = lista[Math.floor(Math.random() * lista.length)];
+  } while (historico[jogadorAtual][tipo].includes(opcao));
+
+  // Salva no histórico
+  historico[jogadorAtual][tipo].push(opcao);
+
+  if (tipo === "Verdade") {
+    document.getElementById("resultado").innerText = `${jogadorAtual}, Verdade: ${opcao}`;
+    document.getElementById("respondiBtn").classList.remove("hidden");
+    iniciarTemporizador();
+  } else {
+    document.getElementById("resultado").innerText = `${jogadorAtual}, Consequência: ${opcao}`;
+    document.getElementById("consequenciaBotoes").classList.remove("hidden");
+    document.getElementById("respondiBtn").classList.add("hidden");
+    document.getElementById("temporizador").classList.add("hidden");
+  }
+}
+
+
+function iniciarTemporizador() {
+  let tempo = 60;
+  respondeuEmTempo = false;
+  document.getElementById("contador").innerText = tempo;
+  document.getElementById("temporizador").classList.remove("hidden");
+
+  intervalo = setInterval(() => {
+    tempo--;
+    document.getElementById("contador").innerText = tempo;
+    if (tempo <= 0) {
+      clearInterval(intervalo);
+      document.getElementById("temporizador").classList.add("hidden");
+      document.getElementById("respondiBtn").classList.add("hidden");
+
+      // Penalização: perde 1 ponto
+      pontuacoes[jogadorAtual] = Math.max(pontuacoes[jogadorAtual] - 1);
+      atualizarScoreboard();
+
+      document.getElementById("resultado").innerText = `${jogadorAtual} não respondeu a tempo! ❌ -1 ponto`;
+      setTimeout(resetarJogo, 3000);
+    }
+  }, 1000);
+}
+
+function confirmarResposta() {
+  respondeuEmTempo = true;
+  clearInterval(intervalo);
+  
+  document.getElementById("respondiBtn").classList.add("hidden");
+  document.getElementById("temporizador").classList.add("hidden");
+
+  // Recompensa: 1 ponto por responder
+  pontuacoes[jogadorAtual] += 1;
+  atualizarScoreboard();
+
+  document.getElementById("resultado").innerText = `${jogadorAtual} respondeu a tempo! ✅ +1 ponto`;
+  setTimeout(resetarJogo, 3000);
+}
+
+function confirmarConsequencia(realizou) {
+  clearTimeout(window.mensagemTimeout); // limpa timeout anterior pra evitar bugs
+
+  if (realizou) {
+    pontuacoes[jogadorAtual]++;
+    atualizarScoreboard();
+    document.getElementById("resultado").innerText = `${jogadorAtual} respondeu corretamente! ✅ +1 ponto`;
+  } else {
+    pontuacoes[jogadorAtual]--;
+    atualizarScoreboard();
+    document.getElementById("resultado").innerText = `${jogadorAtual} errou! ❌ -1 ponto`;
+  }
+
+  // Esconder os botões assim que a escolha é feita
+  document.getElementById("consequenciaBotoes").classList.add("hidden");
+
+  window.mensagemTimeout = setTimeout(() => {
+    document.getElementById("resultado").innerText = "";
+    resetarJogo();
+  }, 3000);
+}
+    // Inicialização
+    atualizarListaUsuarios();
+  </script>
+</body>
+</html>
